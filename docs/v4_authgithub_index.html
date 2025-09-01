@@ -74,23 +74,10 @@
             display: none;
         }
         .github-config {
-            transition: all 0.3s ease;
-        }
-        .github-config.collapsed {
-            max-height: 60px;
-            overflow: hidden;
-        }
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
         }
     </style>
 </head>
@@ -101,38 +88,31 @@
             <p class="text-gray-600">Apprentissage par répétition espacée</p>
         </header>
 
-        <!-- Section configuration GitHub -->
-        <div id="github-config" class="github-config bg-white rounded-lg shadow-md p-5 mb-6">
-            <div class="flex justify-between items-center cursor-pointer" id="toggle-config">
-                <h2 class="text-xl font-bold">Configuration GitHub</h2>
-                <span class="text-2xl">▼</span>
-            </div>
-            
-            <div id="config-content" class="mt-4">
-                <div class="mb-4 p-3 bg-yellow-50 rounded border border-yellow-200">
-                    <p class="text-sm text-yellow-800">
-                        Pour utiliser cette application, vous devez configurer le chemin vers votre dépôt GitHub contenant les fichiers CSV.
-                    </p>
+        <!-- Configuration GitHub -->
+        <div class="github-config bg-white rounded-lg shadow-md p-5 mb-6">
+            <h2 class="text-xl font-bold mb-4">Configuration GitHub</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Propriétaire du dépôt</label>
+                    <input type="text" id="repo-owner" class="w-full p-2 border rounded" placeholder="votre-nom-utilisateur">
                 </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Propriétaire du dépôt</label>
-                        <input type="text" id="repo-owner" class="w-full p-2 border rounded" placeholder="votre-nom-utilisateur" value="soltrmp">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nom du dépôt</label>
-                        <input type="text" id="repo-name" class="w-full p-2 border rounded" placeholder="nom-du-dépôt" value="soltrmp.github.io">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Chemin du dossier</label>
-                        <input type="text" id="repo-path" class="w-full p-2 border rounded" placeholder="chemin/vers/dossier" value="docs">
-                    </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nom du dépôt</label>
+                    <input type="text" id="repo-name" class="w-full p-2 border rounded" placeholder="nom-du-dépôt">
                 </div>
-                <button id="save-config" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                    Sauvegarder la configuration
-                </button>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Chemin du dossier (optionnel)</label>
+                    <input type="text" id="repo-path" class="w-full p-2 border rounded" placeholder="docs/">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Token d'accès (optionnel)</label>
+                    <input type="password" id="github-token" class="w-full p-2 border rounded" placeholder="ghp_xxx">
+                    <p class="text-xs text-gray-500 mt-1">Nécessaire seulement pour les dépôts privés</p>
+                </div>
             </div>
+            <button id="load-github-csv" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                Charger les fichiers depuis GitHub
+            </button>
         </div>
 
         <!-- Section gestion des fichiers -->
@@ -150,22 +130,29 @@
                         Importer CSV
                     </button>
                     <input type="file" id="csv-file" class="hidden" accept=".csv">
-                    <button id="refresh-csv" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700" title="Rafraîchir la liste">
-                        ↻
-                    </button>
                 </div>
             </div>
 
             <div class="mb-4 flex items-center gap-4">
                 <select id="csv-selector" class="p-2 border rounded min-w-[250px]">
-                    <option value="">Chargement des fichiers CSV...</option>
+                    <option value="default">Sélectionner un fichier CSV</option>
                 </select>
                 <button id="load-csv" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
                     Charger
                 </button>
+                <button id="create-csv" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">
+                    Nouveau CSV
+                </button>
             </div>
 
-            <div id="csv-status" class="text-sm text-gray-600 mt-2"></div>
+            <div id="new-csv-form" class="hidden mt-4 p-4 bg-gray-100 rounded">
+                <div class="flex items-center gap-2">
+                    <input type="text" id="new-csv-name" placeholder="Nom du fichier (sans .csv)" class="p-2 border rounded flex-1">
+                    <button id="save-new-csv" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                        Créer
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Boîtes Leitner -->
@@ -195,16 +182,26 @@
                         <textarea id="card-question" class="w-full p-2 border rounded" rows="3" required></textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Image question (URL)</label>
-                        <input type="text" id="card-question-image" class="w-full p-2 border rounded" placeholder="https://...">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Image question (URL ou fichier)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="card-question-image" class="flex-1 p-2 border rounded" placeholder="https://...">
+                            <input type="file" id="question-image-upload" class="hidden" accept="image/*">
+                            <button type="button" id="browse-question-image" class="bg-gray-200 px-3 rounded hover:bg-gray-300">Parcourir</button>
+                        </div>
+                        <img id="question-image-preview" class="image-preview mt-2">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Réponse</label>
                         <textarea id="card-answer" class="w-full p-2 border rounded" rows="3" required></textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Image réponse (URL)</label>
-                        <input type="text" id="card-answer-image" class="w-full p-2 border rounded" placeholder="https://...">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Image réponse (URL ou fichier)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="card-answer-image" class="flex-1 p-2 border rounded" placeholder="https://...">
+                            <input type="file" id="answer-image-upload" class="hidden" accept="image/*">
+                            <button type="button" id="browse-answer-image" class="bg-gray-200 px-3 rounded hover:bg-gray-300">Parcourir</button>
+                        </div>
+                        <img id="answer-image-preview" class="image-preview mt-2">
                     </div>
                     <div class="flex justify-end gap-3 pt-4">
                         <button type="button" id="cancel-edit" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
@@ -257,15 +254,10 @@
         class LeitnerApp {
             constructor() {
                 this.flashcards = [];
-                this.currentCSV = '';
+                this.currentCSV = 'default';
                 this.currentCard = null;
                 this.currentBoxNumber = 1;
                 this.reviewIntervals = [1, 3, 9, 27, 81]; // Intervalles en heures
-                this.githubConfig = {
-                    owner: 'soltrmp',
-                    repo: 'soltrmp.github.io',
-                    path: 'docs'
-                };
                 
                 this.init();
             }
@@ -274,102 +266,131 @@
                 this.loadConfig();
                 this.createBoxes();
                 this.bindEvents();
-                this.loadCSVList();
             }
             
             loadConfig() {
-                const savedConfig = localStorage.getItem('leitnerGitHubConfig');
-                if (savedConfig) {
-                    try {
-                        this.githubConfig = JSON.parse(savedConfig);
-                        document.getElementById('repo-owner').value = this.githubConfig.owner;
-                        document.getElementById('repo-name').value = this.githubConfig.repo;
-                        document.getElementById('repo-path').value = this.githubConfig.path;
-                    } catch (e) {
-                        console.error('Erreur de chargement de la configuration:', e);
-                    }
-                }
+                const config = JSON.parse(localStorage.getItem('leitnerConfig') || '{}');
+                if (config.repoOwner) document.getElementById('repo-owner').value = config.repoOwner;
+                if (config.repoName) document.getElementById('repo-name').value = config.repoName;
+                if (config.repoPath) document.getElementById('repo-path').value = config.repoPath;
+                if (config.githubToken) document.getElementById('github-token').value = config.githubToken;
+                
+                this.loadCSVList();
             }
             
             saveConfig() {
-                this.githubConfig = {
-                    owner: document.getElementById('repo-owner').value,
-                    repo: document.getElementById('repo-name').value,
-                    path: document.getElementById('repo-path').value
+                const config = {
+                    repoOwner: document.getElementById('repo-owner').value,
+                    repoName: document.getElementById('repo-name').value,
+                    repoPath: document.getElementById('repo-path').value,
+                    githubToken: document.getElementById('github-token').value
                 };
                 
-                localStorage.setItem('leitnerGitHubConfig', JSON.stringify(this.githubConfig));
-                this.loadCSVList();
-                alert('Configuration sauvegardée!');
+                localStorage.setItem('leitnerConfig', JSON.stringify(config));
             }
             
             async loadCSVList() {
+                const csvList = JSON.parse(localStorage.getItem('leitnerCSVList') || '[]');
                 const selector = document.getElementById('csv-selector');
-                const status = document.getElementById('csv-status');
                 
-                selector.innerHTML = '<option value="">Chargement...</option>';
-                selector.disabled = true;
-                status.textContent = 'Chargement de la liste des fichiers CSV...';
+                // Garder l'option par défaut
+                selector.innerHTML = '<option value="default">Sélectionner un fichier CSV</option>';
+                
+                // Ajouter les fichiers CSV sauvegardés
+                csvList.forEach(csv => {
+                    const option = document.createElement('option');
+                    option.value = csv;
+                    option.textContent = csv;
+                    selector.appendChild(option);
+                });
+            }
+            
+            async loadCSVFromGitHub() {
+                const repoOwner = document.getElementById('repo-owner').value;
+                const repoName = document.getElementById('repo-name').value;
+                const repoPath = document.getElementById('repo-path').value;
+                const token = document.getElementById('github-token').value;
+                
+                if (!repoOwner || !repoName) {
+                    alert('Veuillez spécifier le propriétaire et le nom du dépôt');
+                    return;
+                }
+                
+                // Sauvegarder la configuration
+                this.saveConfig();
                 
                 try {
-                    const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.path}`);
+                    // Construire l'URL de l'API GitHub
+                    let apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
+                    if (repoPath) apiUrl += repoPath;
+                    
+                    // Préparer les headers
+                    const headers = { 'Accept': 'application/vnd.github.v3+json' };
+                    if (token) headers['Authorization'] = `token ${token}`;
+                    
+                    // Appeler l'API GitHub
+                    const response = await fetch(apiUrl, { headers });
                     
                     if (!response.ok) {
-                        throw new Error(`Erreur GitHub: ${response.status}`);
+                        throw new Error(`Erreur GitHub: ${response.status} ${response.statusText}`);
                     }
                     
                     const contents = await response.json();
+                    
+                    // Filtrer les fichiers CSV
                     const csvFiles = contents.filter(item => 
                         item.type === 'file' && item.name.endsWith('.csv')
                     );
                     
-                    selector.innerHTML = '';
-                    
                     if (csvFiles.length === 0) {
-                        selector.innerHTML = '<option value="">Aucun fichier CSV trouvé</option>';
-                        status.textContent = 'Aucun fichier CSV trouvé dans le dépôt.';
-                    } else {
-                        csvFiles.forEach(file => {
-                            const option = document.createElement('option');
-                            option.value = file.name;
-                            option.textContent = file.name;
-                            selector.appendChild(option);
-                        });
-                        
-                        status.textContent = `${csvFiles.length} fichier(s) CSV trouvé(s).`;
+                        alert('Aucun fichier CSV trouvé dans le dépôt');
+                        return;
                     }
                     
-                    selector.disabled = false;
+                    // Mettre à jour la liste déroulante
+                    const selector = document.getElementById('csv-selector');
+                    
+                    // Garder l'option par défaut
+                    selector.innerHTML = '<option value="default">Sélectionner un fichier CSV</option>';
+                    
+                    // Ajouter les fichiers CSV du dépôt GitHub
+                    csvFiles.forEach(file => {
+                        const option = document.createElement('option');
+                        option.value = file.name;
+                        option.textContent = file.name;
+                        option.dataset.downloadUrl = file.download_url;
+                        selector.appendChild(option);
+                    });
+                    
+                    // Sauvegarder la liste pour une utilisation hors ligne
+                    const csvList = csvFiles.map(file => file.name);
+                    localStorage.setItem('leitnerCSVList', JSON.stringify(csvList));
+                    
+                    alert(`${csvFiles.length} fichier(s) CSV chargé(s) depuis GitHub`);
+                    
                 } catch (error) {
-                    console.error('Erreur de chargement des fichiers CSV:', error);
-                    selector.innerHTML = '<option value="">Erreur de chargement</option>';
-                    status.textContent = `Erreur: ${error.message}. Vérifiez la configuration GitHub.`;
-                    selector.disabled = false;
+                    console.error('Erreur de chargement depuis GitHub:', error);
+                    alert('Erreur de chargement: ' + error.message);
                 }
             }
             
-            async loadCSVFile(csvName) {
-                const status = document.getElementById('csv-status');
-                status.textContent = `Chargement de ${csvName}...`;
-                
+            async loadCSVFromURL(url, csvName) {
                 try {
-                    const response = await fetch(`https://raw.githubusercontent.com/${this.githubConfig.owner}/${this.githubConfig.repo}/main/${this.githubConfig.path}/${csvName}`);
-                    
+                    const response = await fetch(url);
                     if (!response.ok) {
-                        throw new Error(`Erreur de chargement: ${response.status}`);
+                        throw new Error(`Erreur HTTP: ${response.status}`);
                     }
                     
                     const csvContent = await response.text();
-                    this.parseCSVContent(csvContent, csvName);
-                    status.textContent = `${this.flashcards.length} carte(s) chargée(s) depuis ${csvName}.`;
+                    this.parseAndLoadCSV(csvContent, csvName);
                     
                 } catch (error) {
-                    console.error('Erreur de chargement du fichier CSV:', error);
-                    status.textContent = `Erreur: ${error.message}`;
+                    console.error('Erreur de chargement du CSV:', error);
+                    alert('Erreur de chargement: ' + error.message);
                 }
             }
             
-            parseCSVContent(csvContent, csvName) {
+            parseAndLoadCSV(csvContent, csvName) {
                 const lines = csvContent.split('\n').filter(line => line.trim() !== '');
                 
                 if (lines.length < 2) {
@@ -394,12 +415,12 @@
                 }
                 
                 // Parser les données
-                this.flashcards = [];
+                const importedCards = [];
                 for (let i = 1; i < lines.length; i++) {
                     const values = this.parseCSVLine(lines[i]);
                     if (values.length < 6) continue;
                     
-                    this.flashcards.push({
+                    importedCards.push({
                         id: Date.now() + i, // ID unique
                         question: values[0].replace(/^"|"$/g, ''),
                         questionImage: values[1].replace(/^"|"$/g, ''),
@@ -410,37 +431,50 @@
                     });
                 }
                 
-                this.currentCSV = csvName;
-                this.updateBoxes();
+                if (importedCards.length > 0) {
+                    this.flashcards = importedCards;
+                    this.currentCSV = csvName;
+                    this.saveFlashcards();
+                    this.updateBoxes();
+                    alert(`${importedCards.length} cartes chargées depuis ${csvName}`);
+                } else {
+                    alert('Aucune carte valide trouvée dans le fichier CSV');
+                }
             }
             
-            parseCSVLine(line) {
-                const values = [];
-                let current = '';
-                let inQuotes = false;
+            saveCSVList() {
+                const csvList = [];
+                const selector = document.getElementById('csv-selector');
                 
-                for (let i = 0; i < line.length; i++) {
-                    const char = line[i];
-                    
-                    if (char === '"') {
-                        inQuotes = !inQuotes;
-                    } else if (char === ',' && !inQuotes) {
-                        values.push(current);
-                        current = '';
-                    } else {
-                        current += char;
+                for (let i = 1; i < selector.options.length; i++) {
+                    csvList.push(selector.options[i].value);
+                }
+                
+                localStorage.setItem('leitnerCSVList', JSON.stringify(csvList));
+            }
+            
+            loadFlashcards(csvName) {
+                const saved = localStorage.getItem(`leitnerFlashcards_${csvName}`);
+                if (saved) {
+                    try {
+                        this.flashcards = JSON.parse(saved);
+                        this.currentCSV = csvName;
+                        this.updateBoxes();
+                        return true;
+                    } catch (e) {
+                        console.error('Erreur de chargement des flashcards:', e);
                     }
                 }
                 
-                values.push(current);
-                return values.map(v => v.trim());
+                this.flashcards = [];
+                return false;
             }
             
             saveFlashcards() {
-                // Dans cette version, les modifications sont stockées localement
-                // mais ne sont pas sauvegardées sur GitHub (lecture seule)
-                localStorage.setItem(`leitnerFlashcards_${this.currentCSV}`, JSON.stringify(this.flashcards));
-                this.updateBoxes();
+                if (this.currentCSV && this.currentCSV !== 'default') {
+                    localStorage.setItem(`leitnerFlashcards_${this.currentCSV}`, JSON.stringify(this.flashcards));
+                    this.updateBoxes();
+                }
             }
             
             exportToCSV() {
@@ -470,7 +504,7 @@
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.setAttribute('href', url);
-                link.setAttribute('download', `${this.currentCSV}`);
+                link.setAttribute('download', `${this.currentCSV}.csv`);
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
@@ -482,13 +516,34 @@
                 reader.onload = (e) => {
                     try {
                         const csvContent = e.target.result;
-                        this.parseCSVContent(csvContent, file.name);
-                        alert(`${this.flashcards.length} cartes importées avec succès!`);
+                        this.parseAndLoadCSV(csvContent, file.name);
                     } catch (error) {
                         alert('Erreur lors de l\'importation: ' + error.message);
                     }
                 };
                 reader.readAsText(file);
+            }
+            
+            parseCSVLine(line) {
+                const values = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        values.push(current);
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                
+                values.push(current);
+                return values.map(v => v.trim());
             }
             
             createBoxes() {
@@ -693,11 +748,25 @@
                     document.getElementById('card-question-image').value = card.questionImage || '';
                     document.getElementById('card-answer').value = card.answer;
                     document.getElementById('card-answer-image').value = card.answerImage || '';
+                    
+                    // Afficher les prévisualisations d'images
+                    if (card.questionImage) {
+                        document.getElementById('question-image-preview').src = card.questionImage;
+                        document.getElementById('question-image-preview').style.display = 'block';
+                    }
+                    if (card.answerImage) {
+                        document.getElementById('answer-image-preview').src = card.answerImage;
+                        document.getElementById('answer-image-preview').style.display = 'block';
+                    }
                 } else {
                     // Mode création
                     title.textContent = 'Nouvelle carte';
                     form.reset();
                     document.getElementById('card-id').value = '';
+                    
+                    // Cacher les prévisualisations d'images
+                    document.getElementById('question-image-preview').style.display = 'none';
+                    document.getElementById('answer-image-preview').style.display = 'none';
                 }
                 
                 document.getElementById('card-editor').classList.remove('hidden');
@@ -779,36 +848,25 @@
             }
             
             bindEvents() {
-                // Configuration pliable
-                document.getElementById('toggle-config').addEventListener('click', () => {
-                    const config = document.getElementById('github-config');
-                    const content = document.getElementById('config-content');
-                    
-                    if (config.classList.contains('collapsed')) {
-                        config.classList.remove('collapsed');
-                        content.style.display = 'block';
-                        document.querySelector('#toggle-config span').textContent = '▼';
-                    } else {
-                        config.classList.add('collapsed');
-                        content.style.display = 'none';
-                        document.querySelector('#toggle-config span').textContent = '►';
+                // Charger les fichiers depuis GitHub
+                document.getElementById('load-github-csv').addEventListener('click', () => {
+                    this.loadCSVFromGitHub();
+                });
+                
+                // Sélection d'un fichier CSV
+                document.getElementById('csv-selector').addEventListener('change', (e) => {
+                    const selectedOption = e.target.options[e.target.selectedIndex];
+                    if (selectedOption.dataset.downloadUrl) {
+                        if (confirm(`Voulez-vous charger le fichier ${selectedOption.value} depuis GitHub?`)) {
+                            this.loadCSVFromURL(selectedOption.dataset.downloadUrl, selectedOption.value);
+                        }
                     }
-                });
-                
-                // Sauvegarder la configuration
-                document.getElementById('save-config').addEventListener('click', () => {
-                    this.saveConfig();
-                });
-                
-                // Rafraîchir la liste CSV
-                document.getElementById('refresh-csv').addEventListener('click', () => {
-                    this.loadCSVList();
                 });
                 
                 // Bouton nouvelle carte
                 document.getElementById('add-card-btn').addEventListener('click', () => {
-                    if (!this.currentCSV) {
-                        alert('Veuillez d\'abord charger un fichier CSV');
+                    if (this.currentCSV === 'default') {
+                        alert('Veuillez d\'abord sélectionner ou créer un fichier CSV');
                         return;
                     }
                     this.showCardEditor();
@@ -866,17 +924,61 @@
                 // Charger un CSV
                 document.getElementById('load-csv').addEventListener('click', () => {
                     const selectedCSV = document.getElementById('csv-selector').value;
-                    if (selectedCSV) {
-                        this.loadCSVFile(selectedCSV);
+                    if (selectedCSV && selectedCSV !== 'default') {
+                        if (this.loadFlashcards(selectedCSV)) {
+                            alert(`Fichier "${selectedCSV}" chargé avec ${this.flashcards.length} cartes`);
+                        } else {
+                            alert(`Création d'un nouveau fichier "${selectedCSV}"`);
+                            this.currentCSV = selectedCSV;
+                            this.flashcards = [];
+                            this.saveFlashcards();
+                        }
                     } else {
                         alert('Veuillez sélectionner un fichier CSV');
                     }
                 });
                 
+                // Créer un nouveau CSV
+                document.getElementById('create-csv').addEventListener('click', () => {
+                    document.getElementById('new-csv-form').classList.remove('hidden');
+                });
+                
+                // Sauvegarder un nouveau CSV
+                document.getElementById('save-new-csv').addEventListener('click', () => {
+                    const newName = document.getElementById('new-csv-name').value.trim();
+                    if (newName) {
+                        const csvName = newName.endsWith('.csv') ? newName : `${newName}.csv`;
+                        
+                        // Ajouter au sélecteur
+                        const selector = document.getElementById('csv-selector');
+                        const option = document.createElement('option');
+                        option.value = csvName;
+                        option.textContent = csvName;
+                        selector.appendChild(option);
+                        selector.value = csvName;
+                        
+                        // Sauvegarder la liste
+                        this.saveCSVList();
+                        
+                        // Cacher le formulaire
+                        document.getElementById('new-csv-form').classList.add('hidden');
+                        document.getElementById('new-csv-name').value = '';
+                        
+                        // Charger le nouveau CSV
+                        this.currentCSV = csvName;
+                        this.flashcards = [];
+                        this.saveFlashcards();
+                        
+                        alert(`Fichier "${csvName}" créé avec succès!`);
+                    } else {
+                        alert('Veuillez entrer un nom valide');
+                    }
+                });
+                
                 // Exporter en CSV
                 document.getElementById('download-csv').addEventListener('click', () => {
-                    if (!this.currentCSV) {
-                        alert('Veuillez d\'abord charger un fichier CSV');
+                    if (this.currentCSV === 'default') {
+                        alert('Veuillez d\'abord sélectionner ou créer un fichier CSV');
                         return;
                     }
                     this.exportToCSV();
@@ -889,7 +991,85 @@
                 
                 document.getElementById('csv-file').addEventListener('change', (e) => {
                     if (e.target.files.length > 0) {
-                        this.importFromCSV(e.target.files[0]);
+                        // Demander le nom du fichier
+                        const fileName = prompt('Entrez un nom pour ce fichier CSV:', 
+                            e.target.files[0].name.endsWith('.csv') 
+                                ? e.target.files[0].name 
+                                : `${e.target.files[0].name}.csv`);
+                        
+                        if (fileName) {
+                            // Ajouter au sélecteur
+                            const selector = document.getElementById('csv-selector');
+                            const option = document.createElement('option');
+                            option.value = fileName;
+                            option.textContent = fileName;
+                            selector.appendChild(option);
+                            selector.value = fileName;
+                            
+                            // Sauvegarder la liste
+                            this.saveCSVList();
+                            
+                            // Importer les données
+                            this.importFromCSV(e.target.files[0]);
+                        }
+                    }
+                });
+                
+                // Gestion des images
+                document.getElementById('browse-question-image').addEventListener('click', () => {
+                    document.getElementById('question-image-upload').click();
+                });
+                
+                document.getElementById('question-image-upload').addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        const file = e.target.files[0];
+                        const reader = new FileReader();
+                        
+                        reader.onload = (event) => {
+                            document.getElementById('card-question-image').value = event.target.result;
+                            document.getElementById('question-image-preview').src = event.target.result;
+                            document.getElementById('question-image-preview').style.display = 'block';
+                        };
+                        
+                        reader.readAsDataURL(file);
+                    }
+                });
+                
+                document.getElementById('browse-answer-image').addEventListener('click', () => {
+                    document.getElementById('answer-image-upload').click();
+                });
+                
+                document.getElementById('answer-image-upload').addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        const file = e.target.files[0];
+                        const reader = new FileReader();
+                        
+                        reader.onload = (event) => {
+                            document.getElementById('card-answer-image').value = event.target.result;
+                            document.getElementById('answer-image-preview').src = event.target.result;
+                            document.getElementById('answer-image-preview').style.display = 'block';
+                        };
+                        
+                        reader.readAsDataURL(file);
+                    }
+                });
+                
+                // Prévisualisation des images via URL
+                document.getElementById('card-question-image').addEventListener('blur', (e) => {
+                    if (e.target.value) {
+                        document.getElementById('question-image-preview').src = e.target.value;
+                        document.getElementById('question-image-preview').style.display = 'block';
+                    } else {
+                        document.getElementById('question-image-preview').style.display = 'none';
+                    }
+                });
+                
+                document.getElementById('card-answer-image').addEventListener('blur', (e) => {
+                    if (e.target.value) {
+                        document.getElementById('answer-image-preview').src = e.target.value;
+                        document.getElementById('answer-image-preview').style.display = 'block';
+                    } else {
+                        document.getElementById('answer-image-preview').style.display = 'none';
                     }
                 });
             }
