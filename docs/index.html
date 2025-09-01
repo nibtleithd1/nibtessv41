@@ -361,14 +361,19 @@
             
             loadConfig() {
                 const config = JSON.parse(localStorage.getItem('leitnerConfig') || '{}');
-                if (config.repoOwner) document.getElementById('repo-owner').value = config.repoOwner;
-                if (config.repoName) document.getElementById('repo-name').value = config.repoName;
-                if (config.repoPath) document.getElementById('repo-path').value = config.repoPath;
+
+                // Valeurs par défaut pour la configuration GitHub
+                const defaultRepoOwner = 'nibtleithd1';
+                const defaultRepoName = 'nibtessv41';
+                const defaultRepoPath = 'docs';
+                
+                if (config.repoOwner) document.getElementById('repo-owner').value = config.repoOwner || defaultRepoOwner;
+                if (config.repoName) document.getElementById('repo-name').value = config.repoName || defaultRepoName;
+                if (config.repoPath) document.getElementById('repo-path').value = config.repoPath || defaultRepoPath;
                 if (config.githubToken) document.getElementById('github-token').value = config.githubToken;
                 
                 this.loadCSVList();
             }
-            
             loadIntervals() {
                 const savedIntervals = JSON.parse(localStorage.getItem('leitnerIntervals'));
                 if (savedIntervals && savedIntervals.length === 5) {
