@@ -67,21 +67,11 @@
                 padding: 10px;
             }
         }
-        .instructions {
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .instructions h2 {
-            color: #3182ce;
-            margin-bottom: 10px;
-        }
-        .instructions ol {
-            padding-left: 20px;
-        }
-        .instructions li {
-            margin-bottom: 8px;
+        .image-preview {
+            max-width: 200px;
+            max-height: 150px;
+            margin-top: 10px;
+            display: none;
         }
     </style>
 </head>
@@ -92,33 +82,42 @@
             <p class="text-gray-600">Apprentissage par répétition espacée</p>
         </header>
 
-        <div class="instructions mb-6">
-            <h2 class="text-xl font-bold">Instructions d'utilisation</h2>
-            <ol class="list-decimal pl-5">
-                <li>Créez vos flashcards avec le bouton "Nouvelle carte"</li>
-                <li>Cliquez sur une boîte pour voir les cartes qu'elle contient</li>
-                <li>Réviser les cartes en cliquant dessus et en évaluant votre connaissance</li>
-                <li>Exportez vos flashcards en CSV pour les sauvegarder</li>
-                <li>Importez un fichier CSV existant pour charger vos flashcards</li>
-            </ol>
-            <p class="mt-3 font-semibold">Format CSV requis : question_content,answer_content,box_number,last_reviewed</p>
-        </div>
-
-        <!-- Section gestion des decks -->
+        <!-- Section gestion des fichiers -->
         <div class="bg-white rounded-lg shadow-md p-5 mb-6">
             <div class="flex flex-wrap justify-between items-center mb-4">
-                <h2 class="text-xl font-bold">Gestion des flashcards</h2>
+                <h2 class="text-xl font-bold">Gestion des fichiers CSV</h2>
                 <div class="flex flex-wrap gap-2">
                     <button id="add-card-btn" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
                         + Nouvelle carte
                     </button>
-                    <button id="export-btn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                        Exporter CSV
+                    <button id="download-csv" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                        Télécharger CSV
                     </button>
-                    <button id="import-btn" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+                    <button id="import-csv" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
                         Importer CSV
                     </button>
-                    <input type="file" id="import-file" class="hidden" accept=".csv">
+                    <input type="file" id="csv-file" class="hidden" accept=".csv">
+                </div>
+            </div>
+
+            <div class="mb-4 flex items-center gap-4">
+                <select id="csv-selector" class="p-2 border rounded min-w-[250px]">
+                    <option value="default">Sélectionner un fichier CSV</option>
+                </select>
+                <button id="load-csv" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                    Charger
+                </button>
+                <button id="create-csv" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">
+                    Nouveau CSV
+                </button>
+            </div>
+
+            <div id="new-csv-form" class="hidden mt-4 p-4 bg-gray-100 rounded">
+                <div class="flex items-center gap-2">
+                    <input type="text" id="new-csv-name" placeholder="Nom du fichier (sans .csv)" class="p-2 border rounded flex-1">
+                    <button id="save-new-csv" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                        Créer
+                    </button>
                 </div>
             </div>
         </div>
@@ -150,8 +149,26 @@
                         <textarea id="card-question" class="w-full p-2 border rounded" rows="3" required></textarea>
                     </div>
                     <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Image question (URL ou fichier)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="card-question-image" class="flex-1 p-2 border rounded" placeholder="https://...">
+                            <input type="file" id="question-image-upload" class="hidden" accept="image/*">
+                            <button type="button" id="browse-question-image" class="bg-gray-200 px-3 rounded hover:bg-gray-300">Parcourir</button>
+                        </div>
+                        <img id="question-image-preview" class="image-preview mt-2">
+                    </div>
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Réponse</label>
                         <textarea id="card-answer" class="w-full p-2 border rounded" rows="3" required></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Image réponse (URL ou fichier)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="card-answer-image" class="flex-1 p-2 border rounded" placeholder="https://...">
+                            <input type="file" id="answer-image-upload" class="hidden" accept="image/*">
+                            <button type="button" id="browse-answer-image" class="bg-gray-200 px-3 rounded hover:bg-gray-300">Parcourir</button>
+                        </div>
+                        <img id="answer-image-preview" class="image-preview mt-2">
                     </div>
                     <div class="flex justify-end gap-3 pt-4">
                         <button type="button" id="cancel-edit" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
@@ -204,6 +221,7 @@
         class LeitnerApp {
             constructor() {
                 this.flashcards = [];
+                this.currentCSV = 'default';
                 this.currentCard = null;
                 this.currentBoxNumber = 1;
                 this.reviewIntervals = [1, 3, 9, 27, 81]; // Intervalles en heures
@@ -212,28 +230,176 @@
             }
             
             init() {
-                this.loadFlashcards();
+                this.loadCSVList();
                 this.createBoxes();
                 this.bindEvents();
             }
             
-            loadFlashcards() {
-                const saved = localStorage.getItem('leitnerFlashcards');
+            loadCSVList() {
+                const csvList = JSON.parse(localStorage.getItem('leitnerCSVList') || '[]');
+                const selector = document.getElementById('csv-selector');
+                
+                // Garder l'option par défaut
+                selector.innerHTML = '<option value="default">Sélectionner un fichier CSV</option>';
+                
+                // Ajouter les fichiers CSV sauvegardés
+                csvList.forEach(csv => {
+                    const option = document.createElement('option');
+                    option.value = csv;
+                    option.textContent = csv;
+                    selector.appendChild(option);
+                });
+            }
+            
+            saveCSVList() {
+                const csvList = [];
+                const selector = document.getElementById('csv-selector');
+                
+                for (let i = 1; i < selector.options.length; i++) {
+                    csvList.push(selector.options[i].value);
+                }
+                
+                localStorage.setItem('leitnerCSVList', JSON.stringify(csvList));
+            }
+            
+            loadFlashcards(csvName) {
+                const saved = localStorage.getItem(`leitnerFlashcards_${csvName}`);
                 if (saved) {
                     try {
                         this.flashcards = JSON.parse(saved);
+                        this.currentCSV = csvName;
+                        this.updateBoxes();
+                        return true;
                     } catch (e) {
                         console.error('Erreur de chargement des flashcards:', e);
-                        this.flashcards = [];
                     }
                 }
                 
-                this.updateBoxes();
+                this.flashcards = [];
+                return false;
             }
             
             saveFlashcards() {
-                localStorage.setItem('leitnerFlashcards', JSON.stringify(this.flashcards));
-                this.updateBoxes();
+                if (this.currentCSV && this.currentCSV !== 'default') {
+                    localStorage.setItem(`leitnerFlashcards_${this.currentCSV}`, JSON.stringify(this.flashcards));
+                    this.updateBoxes();
+                }
+            }
+            
+            exportToCSV() {
+                if (this.flashcards.length === 0) {
+                    alert('Aucune carte à exporter!');
+                    return;
+                }
+                
+                // Entête CSV selon le format demandé
+                let csvContent = "question_content,question_content_image,answer_content,answer_content_image,box_number,last_reviewed\n";
+                
+                // Données des cartes
+                this.flashcards.forEach(card => {
+                    const row = [
+                        `"${card.question.replace(/"/g, '""')}"`,
+                        card.questionImage ? `"${card.questionImage.replace(/"/g, '""')}"` : '',
+                        `"${card.answer.replace(/"/g, '""')}"`,
+                        card.answerImage ? `"${card.answerImage.replace(/"/g, '""')}"` : '',
+                        card.box,
+                        `"${new Date(card.lastReview).toISOString().split('T')[0]}"`
+                    ];
+                    csvContent += row.join(',') + '\n';
+                });
+                
+                // Créer un blob et un lien de téléchargement
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `${this.currentCSV}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            
+            importFromCSV(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const csvContent = e.target.result;
+                        const lines = csvContent.split('\n').filter(line => line.trim() !== '');
+                        
+                        if (lines.length < 2) {
+                            alert('Fichier CSV vide ou mal formaté');
+                            return;
+                        }
+                        
+                        // Vérifier l'en-tête
+                        const headers = lines[0].split(',').map(h => h.trim());
+                        const expectedHeaders = [
+                            'question_content',
+                            'question_content_image',
+                            'answer_content',
+                            'answer_content_image',
+                            'box_number',
+                            'last_reviewed'
+                        ];
+                        
+                        if (headers.length !== expectedHeaders.length || !expectedHeaders.every((h, i) => headers[i] === h)) {
+                            alert('Format de fichier CSV invalide. Les en-têtes doivent être: ' + expectedHeaders.join(', '));
+                            return;
+                        }
+                        
+                        // Parser les données
+                        const importedCards = [];
+                        for (let i = 1; i < lines.length; i++) {
+                            const values = this.parseCSVLine(lines[i]);
+                            if (values.length < 6) continue;
+                            
+                            importedCards.push({
+                                id: Date.now() + i, // ID unique
+                                question: values[0].replace(/^"|"$/g, ''),
+                                questionImage: values[1].replace(/^"|"$/g, ''),
+                                answer: values[2].replace(/^"|"$/g, ''),
+                                answerImage: values[3].replace(/^"|"$/g, ''),
+                                box: parseInt(values[4]) || 1,
+                                lastReview: new Date(values[5].replace(/^"|"$/g, '')).getTime() || Date.now()
+                            });
+                        }
+                        
+                        if (importedCards.length > 0) {
+                            this.flashcards = importedCards;
+                            this.saveFlashcards();
+                            this.updateBoxes();
+                            alert(`${importedCards.length} cartes importées avec succès!`);
+                        } else {
+                            alert('Aucune carte valide trouvée dans le fichier CSV');
+                        }
+                    } catch (error) {
+                        alert('Erreur lors de l\'importation: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            }
+            
+            parseCSVLine(line) {
+                const values = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        values.push(current);
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                
+                values.push(current);
+                return values.map(v => v.trim());
             }
             
             createBoxes() {
@@ -349,11 +515,22 @@
                 element.className = 'card-item flex items-start gap-3 p-3 hover:bg-gray-100 rounded-lg cursor-pointer';
                 element.dataset.cardId = card.id;
                 
-                const displayText = card.question || 'Carte sans texte';
+                let thumbnailHtml = '';
+                if (card.questionImage) {
+                    thumbnailHtml = `
+                        <div class="thumbnail-container flex-shrink-0">
+                            <img src="${card.questionImage}" 
+                                 alt="Miniature" 
+                                 class="thumbnail-image w-12 h-12 object-cover rounded border border-gray-200">
+                        </div>
+                    `;
+                }
+                
+                const displayText = card.question || (card.questionImage ? 'Carte avec image' : 'Carte sans texte');
                 element.innerHTML = `
+                    ${thumbnailHtml}
                     <div class="flex-1 min-w-0">
                         <div class="text-sm font-medium text-gray-900 truncate">${displayText}</div>
-                        <div class="text-xs text-gray-500 mt-1">Boîte: ${card.box}</div>
                         <div class="card-next-review text-xs text-gray-500 mt-1">
                             Rev.: ${this.formatTime(card.lastReview + this.reviewIntervals[card.box - 1] * 3600 * 1000)}
                         </div>
@@ -380,11 +557,27 @@
                     document.getElementById('question-content').appendChild(textElement);
                 }
                 
+                if (card.questionImage) {
+                    const imgElement = document.createElement('img');
+                    imgElement.src = card.questionImage;
+                    imgElement.alt = 'Image question';
+                    imgElement.className = 'mx-auto my-3 max-w-full max-h-[300px] w-auto h-auto object-scale-down';
+                    document.getElementById('question-content').appendChild(imgElement);
+                }
+                
                 // Préparer la réponse
                 if (card.answer) {
                     const textElement = document.createElement('div');
                     textElement.textContent = card.answer;
                     document.getElementById('answer-content').appendChild(textElement);
+                }
+                
+                if (card.answerImage) {
+                    const imgElement = document.createElement('img');
+                    imgElement.src = card.answerImage;
+                    imgElement.alt = 'Image réponse';
+                    imgElement.className = 'mx-auto my-3 max-w-full max-h-[300px] w-auto h-auto object-scale-down';
+                    document.getElementById('answer-content').appendChild(imgElement);
                 }
                 
                 document.getElementById('last-reviewed').textContent = 
@@ -408,12 +601,28 @@
                     title.textContent = 'Modifier la carte';
                     document.getElementById('card-id').value = card.id;
                     document.getElementById('card-question').value = card.question;
+                    document.getElementById('card-question-image').value = card.questionImage || '';
                     document.getElementById('card-answer').value = card.answer;
+                    document.getElementById('card-answer-image').value = card.answerImage || '';
+                    
+                    // Afficher les prévisualisations d'images
+                    if (card.questionImage) {
+                        document.getElementById('question-image-preview').src = card.questionImage;
+                        document.getElementById('question-image-preview').style.display = 'block';
+                    }
+                    if (card.answerImage) {
+                        document.getElementById('answer-image-preview').src = card.answerImage;
+                        document.getElementById('answer-image-preview').style.display = 'block';
+                    }
                 } else {
                     // Mode création
                     title.textContent = 'Nouvelle carte';
                     form.reset();
                     document.getElementById('card-id').value = '';
+                    
+                    // Cacher les prévisualisations d'images
+                    document.getElementById('question-image-preview').style.display = 'none';
+                    document.getElementById('answer-image-preview').style.display = 'none';
                 }
                 
                 document.getElementById('card-editor').classList.remove('hidden');
@@ -431,7 +640,9 @@
                         this.flashcards[index] = {
                             ...this.flashcards[index],
                             question: cardData.question,
-                            answer: cardData.answer
+                            questionImage: cardData.questionImage,
+                            answer: cardData.answer,
+                            answerImage: cardData.answerImage
                         };
                     }
                 } else {
@@ -440,7 +651,9 @@
                     this.flashcards.push({
                         id: newId,
                         question: cardData.question,
+                        questionImage: cardData.questionImage,
                         answer: cardData.answer,
+                        answerImage: cardData.answerImage,
                         box: 1,
                         lastReview: Date.now()
                     });
@@ -490,110 +703,13 @@
                 }
             }
             
-            exportToCSV() {
-                // Entête du CSV selon le format demandé
-                let csvContent = "question_content,answer_content,box_number,last_reviewed\n";
-                
-                // Ajouter chaque carte au CSV
-                this.flashcards.forEach(card => {
-                    // Échapper les guillemets et formater selon le format demandé
-                    const question = `"${card.question.replace(/"/g, '""')}"`;
-                    const answer = `"${card.answer.replace(/"/g, '""')}"`;
-                    const box = card.box;
-                    const lastReviewed = new Date(card.lastReview).toISOString().split('T')[0];
-                    
-                    csvContent += `${question},${answer},${box},${lastReviewed}\n`;
-                });
-                
-                // Créer un blob et un lien de téléchargement
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                const date = new Date().toISOString().split('T')[0];
-                
-                link.setAttribute("href", url);
-                link.setAttribute("download", `leitner_flashcards_${date}.csv`);
-                link.style.visibility = 'hidden';
-                
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }
-            
-            importFromCSV(file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const csvData = e.target.result;
-                        const lines = csvData.split('\n');
-                        const importedCards = [];
-                        
-                        // Vérifier l'en-tête
-                        const header = lines[0].trim();
-                        if (header !== "question_content,answer_content,box_number,last_reviewed") {
-                            alert("Format de fichier invalide. L'en-tête doit être: question_content,answer_content,box_number,last_reviewed");
-                            return;
-                        }
-                        
-                        // Traiter chaque ligne (en ignorant l'en-tête)
-                        for (let i = 1; i < lines.length; i++) {
-                            const line = lines[i].trim();
-                            if (!line) continue;
-                            
-                            // Parseur CSV simple qui gère les guillemets
-                            let inQuotes = false;
-                            let currentValue = "";
-                            const values = [];
-                            
-                            for (let j = 0; j < line.length; j++) {
-                                const char = line[j];
-                                
-                                if (char === '"') {
-                                    inQuotes = !inQuotes;
-                                } else if (char === ',' && !inQuotes) {
-                                    values.push(currentValue);
-                                    currentValue = "";
-                                } else {
-                                    currentValue += char;
-                                }
-                            }
-                            values.push(currentValue);
-                            
-                            if (values.length >= 4) {
-                                const question = values[0].trim();
-                                const answer = values[1].trim();
-                                const box = parseInt(values[2]) || 1;
-                                const lastReview = new Date(values[3]).getTime() || Date.now();
-                                
-                                importedCards.push({
-                                    id: Date.now() + i, // ID unique
-                                    question: question,
-                                    answer: answer,
-                                    box: box,
-                                    lastReview: lastReview
-                                });
-                            }
-                        }
-                        
-                        if (importedCards.length > 0) {
-                            if (confirm(`Voulez-vous importer ${importedCards.length} cartes?`)) {
-                                this.flashcards = importedCards;
-                                this.saveFlashcards();
-                                alert('Cartes importées avec succès!');
-                            }
-                        } else {
-                            alert('Aucune carte valide trouvée dans le fichier.');
-                        }
-                    } catch (error) {
-                        alert('Erreur lors de l\'importation: ' + error.message);
-                    }
-                };
-                reader.readAsText(file);
-            }
-            
             bindEvents() {
                 // Bouton nouvelle carte
                 document.getElementById('add-card-btn').addEventListener('click', () => {
+                    if (this.currentCSV === 'default') {
+                        alert('Veuillez d\'abord sélectionner ou créer un fichier CSV');
+                        return;
+                    }
                     this.showCardEditor();
                 });
                 
@@ -613,7 +729,9 @@
                     this.saveCard({
                         id: document.getElementById('card-id').value,
                         question: document.getElementById('card-question').value,
-                        answer: document.getElementById('card-answer').value
+                        questionImage: document.getElementById('card-question-image').value,
+                        answer: document.getElementById('card-answer').value,
+                        answerImage: document.getElementById('card-answer-image').value
                     });
                 });
                 
@@ -644,18 +762,155 @@
                     this.processAnswer(true);
                 });
                 
-                // Export/import
-                document.getElementById('export-btn').addEventListener('click', () => {
+                // Charger un CSV
+                document.getElementById('load-csv').addEventListener('click', () => {
+                    const selectedCSV = document.getElementById('csv-selector').value;
+                    if (selectedCSV && selectedCSV !== 'default') {
+                        if (this.loadFlashcards(selectedCSV)) {
+                            alert(`Fichier "${selectedCSV}" chargé avec ${this.flashcards.length} cartes`);
+                        } else {
+                            alert(`Création d'un nouveau fichier "${selectedCSV}"`);
+                            this.currentCSV = selectedCSV;
+                            this.flashcards = [];
+                            this.saveFlashcards();
+                        }
+                    } else {
+                        alert('Veuillez sélectionner un fichier CSV');
+                    }
+                });
+                
+                // Créer un nouveau CSV
+                document.getElementById('create-csv').addEventListener('click', () => {
+                    document.getElementById('new-csv-form').classList.remove('hidden');
+                });
+                
+                // Sauvegarder un nouveau CSV
+                document.getElementById('save-new-csv').addEventListener('click', () => {
+                    const newName = document.getElementById('new-csv-name').value.trim();
+                    if (newName) {
+                        const csvName = newName.endsWith('.csv') ? newName : `${newName}.csv`;
+                        
+                        // Ajouter au sélecteur
+                        const selector = document.getElementById('csv-selector');
+                        const option = document.createElement('option');
+                        option.value = csvName;
+                        option.textContent = csvName;
+                        selector.appendChild(option);
+                        selector.value = csvName;
+                        
+                        // Sauvegarder la liste
+                        this.saveCSVList();
+                        
+                        // Cacher le formulaire
+                        document.getElementById('new-csv-form').classList.add('hidden');
+                        document.getElementById('new-csv-name').value = '';
+                        
+                        // Charger le nouveau CSV
+                        this.currentCSV = csvName;
+                        this.flashcards = [];
+                        this.saveFlashcards();
+                        
+                        alert(`Fichier "${csvName}" créé avec succès!`);
+                    } else {
+                        alert('Veuillez entrer un nom valide');
+                    }
+                });
+                
+                // Exporter en CSV
+                document.getElementById('download-csv').addEventListener('click', () => {
+                    if (this.currentCSV === 'default') {
+                        alert('Veuillez d\'abord sélectionner ou créer un fichier CSV');
+                        return;
+                    }
                     this.exportToCSV();
                 });
                 
-                document.getElementById('import-btn').addEventListener('click', () => {
-                    document.getElementById('import-file').click();
+                // Importer un CSV
+                document.getElementById('import-csv').addEventListener('click', () => {
+                    document.getElementById('csv-file').click();
                 });
                 
-                document.getElementById('import-file').addEventListener('change', (e) => {
+                document.getElementById('csv-file').addEventListener('change', (e) => {
                     if (e.target.files.length > 0) {
-                        this.importFromCSV(e.target.files[0]);
+                        // Demander le nom du fichier
+                        const fileName = prompt('Entrez un nom pour ce fichier CSV:', 
+                            e.target.files[0].name.endsWith('.csv') 
+                                ? e.target.files[0].name 
+                                : `${e.target.files[0].name}.csv`);
+                        
+                        if (fileName) {
+                            // Ajouter au sélecteur
+                            const selector = document.getElementById('csv-selector');
+                            const option = document.createElement('option');
+                            option.value = fileName;
+                            option.textContent = fileName;
+                            selector.appendChild(option);
+                            selector.value = fileName;
+                            
+                            // Sauvegarder la liste
+                            this.saveCSVList();
+                            
+                            // Importer les données
+                            this.importFromCSV(e.target.files[0]);
+                        }
+                    }
+                });
+                
+                // Gestion des images
+                document.getElementById('browse-question-image').addEventListener('click', () => {
+                    document.getElementById('question-image-upload').click();
+                });
+                
+                document.getElementById('question-image-upload').addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        const file = e.target.files[0];
+                        const reader = new FileReader();
+                        
+                        reader.onload = (event) => {
+                            document.getElementById('card-question-image').value = event.target.result;
+                            document.getElementById('question-image-preview').src = event.target.result;
+                            document.getElementById('question-image-preview').style.display = 'block';
+                        };
+                        
+                        reader.readAsDataURL(file);
+                    }
+                });
+                
+                document.getElementById('browse-answer-image').addEventListener('click', () => {
+                    document.getElementById('answer-image-upload').click();
+                });
+                
+                document.getElementById('answer-image-upload').addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        const file = e.target.files[0];
+                        const reader = new FileReader();
+                        
+                        reader.onload = (event) => {
+                            document.getElementById('card-answer-image').value = event.target.result;
+                            document.getElementById('answer-image-preview').src = event.target.result;
+                            document.getElementById('answer-image-preview').style.display = 'block';
+                        };
+                        
+                        reader.readAsDataURL(file);
+                    }
+                });
+                
+                // Prévisualisation des images via URL
+                document.getElementById('card-question-image').addEventListener('blur', (e) => {
+                    if (e.target.value) {
+                        document.getElementById('question-image-preview').src = e.target.value;
+                        document.getElementById('question-image-preview').style.display = 'block';
+                    } else {
+                        document.getElementById('question-image-preview').style.display = 'none';
+                    }
+                });
+                
+                document.getElementById('card-answer-image').addEventListener('blur', (e) => {
+                    if (e.target.value) {
+                        document.getElementById('answer-image-preview').src = e.target.value;
+                        document.getElementById('answer-image-preview').style.display = 'block';
+                    } else {
+                        document.getElementById('answer-image-preview').style.display = 'none';
                     }
                 });
             }
