@@ -357,6 +357,15 @@
                 this.loadIntervals();
                 this.createBoxes();
                 this.bindEvents();
+                
+                // Charger automatiquement les fichiers CSV au démarrage si la config est définie
+                const config = JSON.parse(localStorage.getItem('leitnerConfig') || '{}');
+                if (config.repoOwner && config.repoName) {
+                    // Petit délai pour permettre à l'interface de se charger complètement
+                    setTimeout(() => {
+                        this.loadCSVFromGitHub();
+                    }, 1000);
+                }
             }
             
             loadConfig() {
@@ -472,8 +481,11 @@
                     const selector = document.getElementById('csv-selector');
                     
                     // Garder l'option par défaut
-                    selector.innerHTML = '<option value="default">Sélectionner un fichier CSV</option>';
-                    
+                    //selector.innerHTML = '<option value="default">Sélectionner un fichier CSV</option>';
+                    // Vider la liste avant d'ajouter de nouveaux éléments (sauf l'option par défaut)
+                    while (selector.options.length > 1) {
+                        selector.remove(1);
+                    }                    
                     // Ajouter les fichiers CSV du dépôt GitHub
                     csvFiles.forEach(file => {
                         const option = document.createElement('option');
