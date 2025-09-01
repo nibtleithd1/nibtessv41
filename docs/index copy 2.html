@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Système Leitner - Gestion de Flashcards</title>
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Icône du site (favicon) -->
+    <link rel="icon" type="image/png" href="mordor-2340048_1280.png">
+    <!-- Variante avec un .ico classique -->
+    <!-- <link rel="icon" href="favicon.ico" type="image/x-icon"> -->
+
     <style>
         .site-background {
             background-color: #f0f7ff;
@@ -351,44 +357,32 @@
                 this.loadIntervals();
                 this.createBoxes();
                 this.bindEvents();
+                
+                // Charger automatiquement les fichiers CSV au démarrage si la config est définie
+                const config = JSON.parse(localStorage.getItem('leitnerConfig') || '{}');
+                if (config.repoOwner && config.repoName) {
+                    // Petit délai pour permettre à l'interface de se charger complètement
+                    setTimeout(() => {
+                        this.loadCSVFromGitHub();
+                    }, 1000);
+                }
             }
             
             loadConfig() {
-                // Valeurs par défaut
-                const defaultConfig = {
-                    repoOwner: 'nibtleithd1',
-                    repoName: 'nibtessv41',
-                    repoPath: 'docs',
-                    githubToken: ''
-                };
+                const config = JSON.parse(localStorage.getItem('leitnerConfig') || '{}');
+
+                // Valeurs par défaut pour la configuration GitHub
+                const defaultRepoOwner = 'nibtleithd1';
+                const defaultRepoName = 'nibtessv41';
+                const defaultRepoPath = 'docs';
                 
-                // Charger la configuration sauvegardée ou utiliser les valeurs par défaut
-                const savedConfig = JSON.parse(localStorage.getItem('leitnerConfig') || '{}');
-                const config = {...defaultConfig, ...savedConfig};
-                
-                // Remplir les champs du formulaire
-                document.getElementById('repo-owner').value = config.repoOwner;
-                document.getElementById('repo-name').value = config.repoName;
-                document.getElementById('repo-path').value = config.repoPath;
-                document.getElementById('github-token').value = config.githubToken;
-                
-                // Sauvegarder la configuration complète
-                localStorage.setItem('leitnerConfig', JSON.stringify(config));
+                if (config.repoOwner) document.getElementById('repo-owner').value = config.repoOwner || defaultRepoOwner;
+                if (config.repoName) document.getElementById('repo-name').value = config.repoName || defaultRepoName;
+                if (config.repoPath) document.getElementById('repo-path').value = config.repoPath || defaultRepoPath;
+                if (config.githubToken) document.getElementById('github-token').value = config.githubToken;
                 
                 this.loadCSVList();
             }
-            
-            saveConfig() {
-                const config = {
-                    repoOwner: document.getElementById('repo-owner').value || 'nibtleithd1',
-                    repoName: document.getElementById('repo-name').value || 'nibtessv41',
-                    repoPath: document.getElementById('repo-path').value || 'docs',
-                    githubToken: document.getElementById('github-token').value || ''
-                };
-                
-                localStorage.setItem('leitnerConfig', JSON.stringify(config));
-            }
-            
             loadIntervals() {
                 const savedIntervals = JSON.parse(localStorage.getItem('leitnerIntervals'));
                 if (savedIntervals && savedIntervals.length === 5) {
@@ -412,6 +406,17 @@
                 localStorage.setItem('leitnerIntervals', JSON.stringify(this.reviewIntervals));
                 this.updateBoxes();
                 alert('Intervalles sauvegardés avec succès!');
+            }
+            
+            saveConfig() {
+                const config = {
+                    repoOwner: document.getElementById('repo-owner').value,
+                    repoName: document.getElementById('repo-name').value,
+                    repoPath: document.getElementById('repo-path').value,
+                    githubToken: document.getElementById('github-token').value
+                };
+                
+                localStorage.setItem('leitnerConfig', JSON.stringify(config));
             }
             
             async loadCSVList() {
@@ -476,8 +481,11 @@
                     const selector = document.getElementById('csv-selector');
                     
                     // Garder l'option par défaut
-                    selector.innerHTML = '<option value="default">Sélectionner un fichier CSV</option>';
-                    
+                    //selector.innerHTML = '<option value="default">Sélectionner un fichier CSV</option>';
+                    // Vider la liste avant d'ajouter de nouveaux éléments (sauf l'option par défaut)
+                    while (selector.options.length > 1) {
+                        selector.remove(1);
+                    }                    
                     // Ajouter les fichiers CSV du dépôt GitHub
                     csvFiles.forEach(file => {
                         const option = document.createElement('option');
@@ -985,9 +993,6 @@
                     for (let i = 1; i <= 5; i++) {
                         document.getElementById(`interval-${i}`).value = this.reviewIntervals[i-1];
                     }
-                    
-                    // Réinitialiser les champs GitHub avec les valeurs par défaut
-                    this.loadConfig();
                     
                     alert('Toutes les données ont été réinitialisées.');
                 }
