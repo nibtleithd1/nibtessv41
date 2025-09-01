@@ -67,6 +67,22 @@
                 padding: 10px;
             }
         }
+        .instructions {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .instructions h2 {
+            color: #3182ce;
+            margin-bottom: 10px;
+        }
+        .instructions ol {
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin-bottom: 8px;
+        }
     </style>
 </head>
 <body class="site-background text-gray-800">
@@ -75,6 +91,18 @@
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Système Leitner</h1>
             <p class="text-gray-600">Apprentissage par répétition espacée</p>
         </header>
+
+        <div class="instructions mb-6">
+            <h2 class="text-xl font-bold">Instructions d'utilisation</h2>
+            <ol class="list-decimal pl-5">
+                <li>Créez vos flashcards avec le bouton "Nouvelle carte"</li>
+                <li>Cliquez sur une boîte pour voir les cartes qu'elle contient</li>
+                <li>Réviser les cartes en cliquant dessus et en évaluant votre connaissance</li>
+                <li>Exportez vos flashcards en CSV pour les sauvegarder</li>
+                <li>Importez un fichier CSV existant pour charger vos flashcards</li>
+            </ol>
+            <p class="mt-3 font-semibold">Format CSV requis : question_content,answer_content,box_number,last_reviewed</p>
+        </div>
 
         <!-- Section gestion des decks -->
         <div class="bg-white rounded-lg shadow-md p-5 mb-6">
@@ -85,19 +113,13 @@
                         + Nouvelle carte
                     </button>
                     <button id="export-btn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                        Exporter les données
+                        Exporter CSV
                     </button>
                     <button id="import-btn" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
-                        Importer des données
+                        Importer CSV
                     </button>
-                    <input type="file" id="import-file" class="hidden" accept=".json,.csv">
+                    <input type="file" id="import-file" class="hidden" accept=".csv">
                 </div>
-            </div>
-
-            <div class="mb-4">
-                <select id="deck-selector" class="p-2 border rounded min-w-[250px]">
-                    <option value="default">Deck par défaut</option>
-                </select>
             </div>
         </div>
 
@@ -128,16 +150,8 @@
                         <textarea id="card-question" class="w-full p-2 border rounded" rows="3" required></textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Image question (URL)</label>
-                        <input type="url" id="card-question-image" class="w-full p-2 border rounded" placeholder="https://...">
-                    </div>
-                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Réponse</label>
                         <textarea id="card-answer" class="w-full p-2 border rounded" rows="3" required></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Image réponse (URL)</label>
-                        <input type="url" id="card-answer-image" class="w-full p-2 border rounded" placeholder="https://...">
                     </div>
                     <div class="flex justify-end gap-3 pt-4">
                         <button type="button" id="cancel-edit" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
@@ -190,7 +204,6 @@
         class LeitnerApp {
             constructor() {
                 this.flashcards = [];
-                this.currentDeck = 'default';
                 this.currentCard = null;
                 this.currentBoxNumber = 1;
                 this.reviewIntervals = [1, 3, 9, 27, 81]; // Intervalles en heures
@@ -336,22 +349,11 @@
                 element.className = 'card-item flex items-start gap-3 p-3 hover:bg-gray-100 rounded-lg cursor-pointer';
                 element.dataset.cardId = card.id;
                 
-                let thumbnailHtml = '';
-                if (card.questionImage) {
-                    thumbnailHtml = `
-                        <div class="thumbnail-container flex-shrink-0">
-                            <img src="${card.questionImage}" 
-                                 alt="Miniature" 
-                                 class="thumbnail-image w-12 h-12 object-cover rounded border border-gray-200">
-                        </div>
-                    `;
-                }
-                
-                const displayText = card.question || (card.questionImage ? 'Carte avec image' : 'Carte sans texte');
+                const displayText = card.question || 'Carte sans texte';
                 element.innerHTML = `
-                    ${thumbnailHtml}
                     <div class="flex-1 min-w-0">
                         <div class="text-sm font-medium text-gray-900 truncate">${displayText}</div>
+                        <div class="text-xs text-gray-500 mt-1">Boîte: ${card.box}</div>
                         <div class="card-next-review text-xs text-gray-500 mt-1">
                             Rev.: ${this.formatTime(card.lastReview + this.reviewIntervals[card.box - 1] * 3600 * 1000)}
                         </div>
@@ -378,27 +380,11 @@
                     document.getElementById('question-content').appendChild(textElement);
                 }
                 
-                if (card.questionImage) {
-                    const imgElement = document.createElement('img');
-                    imgElement.src = card.questionImage;
-                    imgElement.alt = 'Image question';
-                    imgElement.className = 'mx-auto my-3 max-w-full max-h-[300px] w-auto h-auto object-scale-down';
-                    document.getElementById('question-content').appendChild(imgElement);
-                }
-                
                 // Préparer la réponse
                 if (card.answer) {
                     const textElement = document.createElement('div');
                     textElement.textContent = card.answer;
                     document.getElementById('answer-content').appendChild(textElement);
-                }
-                
-                if (card.answerImage) {
-                    const imgElement = document.createElement('img');
-                    imgElement.src = card.answerImage;
-                    imgElement.alt = 'Image réponse';
-                    imgElement.className = 'mx-auto my-3 max-w-full max-h-[300px] w-auto h-auto object-scale-down';
-                    document.getElementById('answer-content').appendChild(imgElement);
                 }
                 
                 document.getElementById('last-reviewed').textContent = 
@@ -422,9 +408,7 @@
                     title.textContent = 'Modifier la carte';
                     document.getElementById('card-id').value = card.id;
                     document.getElementById('card-question').value = card.question;
-                    document.getElementById('card-question-image').value = card.questionImage || '';
                     document.getElementById('card-answer').value = card.answer;
-                    document.getElementById('card-answer-image').value = card.answerImage || '';
                 } else {
                     // Mode création
                     title.textContent = 'Nouvelle carte';
@@ -447,9 +431,7 @@
                         this.flashcards[index] = {
                             ...this.flashcards[index],
                             question: cardData.question,
-                            questionImage: cardData.questionImage,
-                            answer: cardData.answer,
-                            answerImage: cardData.answerImage
+                            answer: cardData.answer
                         };
                     }
                 } else {
@@ -458,9 +440,7 @@
                     this.flashcards.push({
                         id: newId,
                         question: cardData.question,
-                        questionImage: cardData.questionImage,
                         answer: cardData.answer,
-                        answerImage: cardData.answerImage,
                         box: 1,
                         lastReview: Date.now()
                     });
@@ -510,31 +490,99 @@
                 }
             }
             
-            exportData() {
-                const dataStr = JSON.stringify(this.flashcards, null, 2);
-                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            exportToCSV() {
+                // Entête du CSV selon le format demandé
+                let csvContent = "question_content,answer_content,box_number,last_reviewed\n";
                 
-                const exportFileDefaultName = `leitner-flashcards-${new Date().toISOString().split('T')[0]}.json`;
+                // Ajouter chaque carte au CSV
+                this.flashcards.forEach(card => {
+                    // Échapper les guillemets et formater selon le format demandé
+                    const question = `"${card.question.replace(/"/g, '""')}"`;
+                    const answer = `"${card.answer.replace(/"/g, '""')}"`;
+                    const box = card.box;
+                    const lastReviewed = new Date(card.lastReview).toISOString().split('T')[0];
+                    
+                    csvContent += `${question},${answer},${box},${lastReviewed}\n`;
+                });
                 
-                const linkElement = document.createElement('a');
-                linkElement.setAttribute('href', dataUri);
-                linkElement.setAttribute('download', exportFileDefaultName);
-                linkElement.click();
+                // Créer un blob et un lien de téléchargement
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                const date = new Date().toISOString().split('T')[0];
+                
+                link.setAttribute("href", url);
+                link.setAttribute("download", `leitner_flashcards_${date}.csv`);
+                link.style.visibility = 'hidden';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             }
             
-            importData(file) {
+            importFromCSV(file) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     try {
-                        const importedData = JSON.parse(e.target.result);
-                        if (Array.isArray(importedData)) {
-                            if (confirm(`Voulez-vous remplacer vos flashcards existantes par ${importedData.length} nouvelles cartes?`)) {
-                                this.flashcards = importedData;
+                        const csvData = e.target.result;
+                        const lines = csvData.split('\n');
+                        const importedCards = [];
+                        
+                        // Vérifier l'en-tête
+                        const header = lines[0].trim();
+                        if (header !== "question_content,answer_content,box_number,last_reviewed") {
+                            alert("Format de fichier invalide. L'en-tête doit être: question_content,answer_content,box_number,last_reviewed");
+                            return;
+                        }
+                        
+                        // Traiter chaque ligne (en ignorant l'en-tête)
+                        for (let i = 1; i < lines.length; i++) {
+                            const line = lines[i].trim();
+                            if (!line) continue;
+                            
+                            // Parseur CSV simple qui gère les guillemets
+                            let inQuotes = false;
+                            let currentValue = "";
+                            const values = [];
+                            
+                            for (let j = 0; j < line.length; j++) {
+                                const char = line[j];
+                                
+                                if (char === '"') {
+                                    inQuotes = !inQuotes;
+                                } else if (char === ',' && !inQuotes) {
+                                    values.push(currentValue);
+                                    currentValue = "";
+                                } else {
+                                    currentValue += char;
+                                }
+                            }
+                            values.push(currentValue);
+                            
+                            if (values.length >= 4) {
+                                const question = values[0].trim();
+                                const answer = values[1].trim();
+                                const box = parseInt(values[2]) || 1;
+                                const lastReview = new Date(values[3]).getTime() || Date.now();
+                                
+                                importedCards.push({
+                                    id: Date.now() + i, // ID unique
+                                    question: question,
+                                    answer: answer,
+                                    box: box,
+                                    lastReview: lastReview
+                                });
+                            }
+                        }
+                        
+                        if (importedCards.length > 0) {
+                            if (confirm(`Voulez-vous importer ${importedCards.length} cartes?`)) {
+                                this.flashcards = importedCards;
                                 this.saveFlashcards();
-                                alert('Données importées avec succès!');
+                                alert('Cartes importées avec succès!');
                             }
                         } else {
-                            alert('Format de fichier invalide.');
+                            alert('Aucune carte valide trouvée dans le fichier.');
                         }
                     } catch (error) {
                         alert('Erreur lors de l\'importation: ' + error.message);
@@ -565,9 +613,7 @@
                     this.saveCard({
                         id: document.getElementById('card-id').value,
                         question: document.getElementById('card-question').value,
-                        questionImage: document.getElementById('card-question-image').value,
-                        answer: document.getElementById('card-answer').value,
-                        answerImage: document.getElementById('card-answer-image').value
+                        answer: document.getElementById('card-answer').value
                     });
                 });
                 
@@ -600,7 +646,7 @@
                 
                 // Export/import
                 document.getElementById('export-btn').addEventListener('click', () => {
-                    this.exportData();
+                    this.exportToCSV();
                 });
                 
                 document.getElementById('import-btn').addEventListener('click', () => {
@@ -609,7 +655,7 @@
                 
                 document.getElementById('import-file').addEventListener('change', (e) => {
                     if (e.target.files.length > 0) {
-                        this.importData(e.target.files[0]);
+                        this.importFromCSV(e.target.files[0]);
                     }
                 });
             }
