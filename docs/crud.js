@@ -1,40 +1,130 @@
-
-export class LeitnerSystem {
+export class CRUDManager {
     init(app) {
         this.app = app;
-        this.reviewIntervals = [1, 3, 9, 27, 81]; // Intervalles en heures
     }
     
-    getInterval(boxNumber) {
-        return this.reviewIntervals[boxNumber - 1] || 1;
-    }
-    
-    processAnswer(isCorrect) {
-        const card = this.app.currentCard;
-        card.lastReview = Date.now();
-        card.box = isCorrect ? Math.min(card.box + 1, 5) : 1;
-        
-        // Mettre à jour la carte dans la liste
-        const index = this.app.flashcards.findIndex(c => c.id === card.id);
-        if (index !== -1) {
-            this.app.flashcards[index] = card;
+    saveCard(cardData) {
+        if (cardData.id) {
+            // Modification
+            const index = this.app.flashcards.findIndex(c => c.id == cardData.id);
+            if (index !== -1) {
+                this.app.flashcards[index] = {
+                    ...this.app.flashcards[index],
+                    question: cardData.question,
+                    questionImage: cardData.questionImage,
+                    answer: cardData.answer,
+                    answerImage: cardData.answerImage
+                };
+            }
+        } else {
+            // Nouvelle carte
+            const newId = Date.now(); // ID unique basé sur le timestamp
+            this.app.flashcards.push({
+                id: newId,
+                question: cardData.question,
+                questionImage: cardData.questionImage,
+                answer: cardData.answer,
+                answerImage: cardData.answerImage,
+                box: 1,
+                lastReview: Date.now()
+            });
         }
         
-        // Mettre à jour l'interface
-        this.app.ui.updateBoxes(this.app.flashcards);
-        this.app.ui.hideCardViewer();
+        this.app.saveFlashcards();
+        this.app.ui.hideCardEditor();
         
-        // Sauvegarder (optionnel, pourrait être fait plus tard)
-        this.app.saveFlashcards().catch(console.error);
+        // Si on était en train de voir une liste, la mettre à jour
+        if (!document.getElementById('cards-list-container').classList.contains('hidden')) {
+            this.app.ui.showCardsList(this.app.currentBoxNumber, this.app.flashcards, this.app.reviewIntervals);
+        }
     }
     
-    getNextReviewTime(boxNumber) {
-        const boxCards = this.app.flashcards.filter(card => card.box === boxNumber);
-        if (boxCards.length === 0) return null;
+    deleteCard(cardId) {
+        const index = this.app.flashcards.findIndex(c => c.id == cardId);
+        if (index !== -1) {
+            this.app.flashcards.splice(index, 1);
+            this.app.saveFlashcards();
+            this.app.ui.hideCardViewer();
+            
+            // Si on était en train de voir une liste, la mettre à jour
+            if (!document.getElementById('cards-list-container').classList.contains('hidden')) {
+                this.app.ui.showCardsList(this.app.currentBoxNumber, this.app.flashcards, this.app.reviewIntervals);
+            }
+        }
+    }
+    
+    loadFlashcards(csvName) {
+        const saved = localStorage.getItem(`leitnerFlashcards_${csvName}`);
+        if (saved) {
+            try {
+                this.app.flashcards = JSON.parse(saved);
+                this.app.currentCSV = csvName;
+                this.app.updateBoxes();
+                return true;
+            } catch (e) {
+                console.error('Erreur de chargement des flashcards:', e);
+            }
+        }
         
-        return boxCards.reduce((min, card) => {
-            const cardNextReview = card.lastReview + this.getInterval(card.box) * 3600 * 1000;
-            return Math.min(min, cardNextReview);
-        }, Infinity);
+        this.app.flashcards = [];
+        return false;
+    }
+    
+    saveCSVList() {
+        const csvList = [];
+        const selector = document.getElementById('csv-selector');
+        
+        for (let i = 1; i < selector.options.length; i++) {
+            csvList.push(selector.options[i].value);
+        }
+        
+        localStorage.setItem('leitnerCSVList', JSON.stringify(csvList));
+    }
+    
+    exportToCSV() {
+        if (this.app.flashcards.length === 0) {
+            alert('Aucune carte à exporter!');
+            return;
+        }
+        
+        // Entête CSV selon le format demandé
+        let csvContent = "question_content,question_content_image,answer_content,answer_content_image,box_number,last_reviewed\n";
+        
+        // Données des cartes
+        this.app.flashcards.forEach(card => {
+            const row = [
+                `"${card.question.replace(/"/g, '""')}"`,
+                card.questionImage ? `"${card.questionImage.replace(/"/g, '""')}"` : '',
+                `"${card.answer.replace(/"/g, '""')}"`,
+                card.answerImage ? `"${card.answerImage.replace(/"/g, '""')}"` : '',
+                card.box,
+                `"${new Date(card.lastReview).toISOString().split('T')[0]}"`
+            ];
+            csvContent += row.join(',') + '\n';
+        });
+        
+        // Créer un blob et un lien de téléchargement
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${this.app.currentCSV}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    
+    importFromCSV(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const csvContent = e.target.result;
+                this.app.parseAndLoadCSV(csvContent, file.name);
+            } catch (error) {
+                alert('Erreur lors de l\'importation: ' + error.message);
+            }
+        };
+        reader.readAsText(file);
     }
 }
