@@ -33,9 +33,9 @@ class LeitnerApp {
     loadConfig() {
         // Valeurs par défaut
         const defaultConfig = {
-            repoOwner: 'soltrmp',
-            repoName: 'soltrmp.github.io',
-            repoPath: 'docs/',
+            repoOwner: 'nibtleithd1',
+            repoName: 'nibtessv41',
+            repoPath: 'docs',
             githubToken: ''
         };
         
@@ -58,9 +58,9 @@ class LeitnerApp {
     
     saveConfig() {
         const config = {
-            repoOwner: document.getElementById('repo-owner').value || 'soltrmp',
-            repoName: document.getElementById('repo-name').value || 'soltrmp.github.io',
-            repoPath: document.getElementById('repo-path').value || 'docs/',
+            repoOwner: document.getElementById('repo-owner').value || 'nibtleithd1',
+            repoName: document.getElementById('repo-name').value || 'nibtessv41',
+            repoPath: document.getElementById('repo-path').value || 'docs',
             githubToken: document.getElementById('github-token').value || ''
         };
         
